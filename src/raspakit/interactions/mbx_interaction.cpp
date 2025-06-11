@@ -253,6 +253,10 @@ RunningEnergy Interactions::computeMBXEnergy(
 
     allNewAtoms.insert(allNewAtoms.end(), newatoms.begin(), newatoms.end());
 
-    return Interactions::computeMBXEnergy(forceField, simulationBox, frameworkAtoms, allNewAtoms)
-         - Interactions::computeMBXEnergy(forceField, simulationBox, frameworkAtoms, allOldAtoms);
+    RunningEnergy oldEnergy = Interactions::computeMBXEnergy(forceField, simulationBox, frameworkAtoms, allOldAtoms);
+    RunningEnergy newEnergy = Interactions::computeMBXEnergy(forceField, simulationBox, frameworkAtoms, allNewAtoms);
+
+    std::cerr << "MBX Energy Difference: " << (newEnergy - oldEnergy).moleculeMoleculeCharge << std::endl;
+
+    return newEnergy - oldEnergy;
 }
