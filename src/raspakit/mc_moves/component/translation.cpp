@@ -179,7 +179,7 @@ std::optional<RunningEnergy> MC_Moves::translationMove(RandomNumber &random, Sys
 
   // Calculate the total energy difference
   // RunningEnergy energyDifference = externalFieldMolecule.value() + frameworkMolecule.value() + interMolecule.value() +
-                                   ewaldFourierEnergy + polarization + mbx;
+                                  //  ewaldFourierEnergy + polarization + mbx;
   // This should work, since we set CO2's changes to 0, so the frameworkMolecule is only the lj part of the framework-mol interaction,
   // and the elec part of the framework-mol interaction is part of mbx.
   RunningEnergy energyDifference = frameworkMolecule.value() + mbx;
