@@ -178,8 +178,9 @@ std::optional<RunningEnergy> MC_Moves::translationMove(RandomNumber &random, Sys
   }
 
   // Calculate the total energy difference
-  RunningEnergy energyDifference = externalFieldMolecule.value() + frameworkMolecule.value() + interMolecule.value() +
+  // RunningEnergy energyDifference = externalFieldMolecule.value() + frameworkMolecule.value() + interMolecule.value() +
                                    ewaldFourierEnergy + polarization + mbx;
+  RunningEnergy energyDifference = mbx;
 
   // Update move construction statistics
   component.mc_moves_statistics.addConstructed(move, selectedDirection);
