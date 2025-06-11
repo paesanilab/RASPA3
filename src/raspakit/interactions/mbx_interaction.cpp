@@ -11,6 +11,7 @@ module;
 #include <span>
 #include <thread>
 #include <vector>
+#include <fstream>
 #include "bblock/system.h"
 #endif
 
@@ -26,6 +27,7 @@ import <cmath>;
 import <optional>;
 import <thread>;
 import <future>;
+import <fstream>;
 #include "bblock/system.h"
 #endif
 
@@ -59,7 +61,7 @@ RunningEnergy Interactions::computeMBXEnergy(
 {
 
     // This should get passed to MBX from RASPA, but for now we hardcode it.
-    std::string json_path = "path/to/mbx.json";
+    char* json_path = "mbx.json";
 
     /***
      * SECTION 1: Setup MBX System object.
@@ -71,11 +73,11 @@ RunningEnergy Interactions::computeMBXEnergy(
 
     for(int i = 0; i < moleculeAtoms.size(); i++) {
 
-        int numAtoms = 5; // Hard coded for methane
+        int numAtoms = 3; // Hard coded for methane
 
-        std::vector<double> atomCoordinates(numAtoms);
+        std::vector<double> atomCoordinates(3 * numAtoms);
         std::vector<std::string> atomNames(numAtoms);
-        std::string molName = "ch4";
+        std::string molName = "co2";
 
         for(int j = 0; j < numAtoms; j++) {
             atomCoordinates[j * 3] = moleculeAtoms[i + j].position.x;
@@ -119,6 +121,15 @@ RunningEnergy Interactions::computeMBXEnergy(
     
     mbx->SetExternalChargesAndPositions(frameworkCharges, frameworkCoords, frameworkIsLocals, frameworkTags);
 
+    std::ifstream t(json_path);
+    t.seekg(0, std::ios::end);
+    int size = t.tellg();
+    std::string json_settings;
+    json_settings.resize(size);
+    t.seekg(0);
+    t.read(&json_settings[0], size);
+    mbx->SetUpFromJson(json_settings);
+
     std::vector<double> box(9, 0.0);
 
     // Box x vector
@@ -136,9 +147,13 @@ RunningEnergy Interactions::computeMBXEnergy(
     box[7] = simulationBox.cell.m32;
     box[8] = simulationBox.cell.m33;
     
-    mbx->SetPBC(box);
+    for (int i = 0; i < 9; i++) {
+        if (std::abs(box[i]) < 1e-10) {
+            box[i] = 0.0; // Avoid numerical issues with very small values
+        }
+    }
 
-    mbx->SetUpFromJson(json_path);
+    mbx->SetPBC(box);
 
     /***
      * SECTION 2: Calculate MBX energy.
@@ -154,7 +169,7 @@ RunningEnergy Interactions::computeMBXEnergy(
 
     std::cerr << "MBX energy: " << energy << std::endl;
 
-    
+    // double energy = 0.0;
 
     RunningEnergy energySum{};
 
@@ -176,12 +191,63 @@ RunningEnergy Interactions::computeMBXEnergy(
 ) noexcept
 {
 
+    // std::cerr << "Calculating MBX energy difference..." << std::endl;
+
+    // std::cerr << "Number of framework atoms: " << frameworkAtoms.size() << std::endl;
+
+    // std::cerr << "Number of molecule atoms: " << moleculeAtoms.size() << std::endl;
+
+    // std::cerr << "Number of new molecule atoms: " << newatoms.size() << std::endl;
+
+    // std::cerr << "Number of old molecule atoms: " << oldatoms.size() << std::endl;
+
     std::vector<Atom> allOldAtoms;
-    allOldAtoms.insert(allOldAtoms.end(), moleculeAtoms.begin(), moleculeAtoms.end());
+    std::vector<Atom> allNewAtoms;
+
+    // for(int i = 0; i < allNewAtoms.size(); i++) {
+    //     // std::cerr << "New atom " << i << ": " << allNewAtoms[i].type << " at position "
+    //     //           << allNewAtoms[i].position.x << ", "
+    //     //           << allNewAtoms[i].position.y << ", "
+    //     //           << allNewAtoms[i].position.z << std::endl;
+    // }
+
+    for(int i = 0; i < moleculeAtoms.size(); i++) {
+        bool keepAtom = true;
+        for(const Atom &oldAtom : oldatoms) {
+            if(moleculeAtoms[i].componentId == oldAtom.componentId && moleculeAtoms[i].moleculeId == oldAtom.moleculeId) {
+                keepAtom = false;
+                break;
+            }
+        }
+
+        if(keepAtom) {
+            allOldAtoms.push_back(moleculeAtoms[i]);
+        }
+    }
+
     allOldAtoms.insert(allOldAtoms.end(), oldatoms.begin(), oldatoms.end());
 
-    std::vector<Atom> allNewAtoms;
-    allNewAtoms.insert(allNewAtoms.end(), moleculeAtoms.begin(), moleculeAtoms.end());
+    for(int i = 0; i < allOldAtoms.size(); i++) {
+        // std::cerr << "Old atom " << i << ": " << allOldAtoms[i].type << " at position "
+        //           << allOldAtoms[i].position.x << ", "
+        //           << allOldAtoms[i].position.y << ", "
+        //           << allOldAtoms[i].position.z << std::endl;
+    }
+
+    for(int i = 0; i < moleculeAtoms.size(); i++) {
+        bool keepAtom = true;
+        for(const Atom &newAtom : newatoms) {
+            if(moleculeAtoms[i].componentId == newAtom.componentId && moleculeAtoms[i].moleculeId == newAtom.moleculeId) {
+                keepAtom = false;
+                break;
+            }
+        }
+
+        if(keepAtom) {
+            allNewAtoms.push_back(moleculeAtoms[i]);
+        }
+    }
+
     allNewAtoms.insert(allNewAtoms.end(), newatoms.begin(), newatoms.end());
 
     return Interactions::computeMBXEnergy(forceField, simulationBox, frameworkAtoms, allNewAtoms)
