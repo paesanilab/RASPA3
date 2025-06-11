@@ -101,9 +101,18 @@ RunningEnergy Interactions::computeMBXEnergy(
         i += numAtoms - 1;
     }
 
+    std::ifstream t(json_path);
+    t.seekg(0, std::ios::end);
+    int size = t.tellg();
+    std::string json_settings;
+    json_settings.resize(size);
+    t.seekg(0);
+    t.read(&json_settings[0], size);
+    mbx->SetUpFromJson(json_settings);
+
     std::vector<double> frameworkCoords(frameworkAtoms.size() * 3);
     std::vector<double> frameworkCharges(frameworkAtoms.size());
-    std::vector<size_t> frameworkIsLocals(frameworkAtoms.size(), true);
+    std::vector<size_t> frameworkIsLocals(frameworkAtoms.size(), 1);
     std::vector<int> frameworkTags(frameworkAtoms.size());
 
     for (int i = 0; i < frameworkAtoms.size(); i++) {
@@ -120,15 +129,6 @@ RunningEnergy Interactions::computeMBXEnergy(
     }
     
     mbx->SetExternalChargesAndPositions(frameworkCharges, frameworkCoords, frameworkIsLocals, frameworkTags);
-
-    std::ifstream t(json_path);
-    t.seekg(0, std::ios::end);
-    int size = t.tellg();
-    std::string json_settings;
-    json_settings.resize(size);
-    t.seekg(0);
-    t.read(&json_settings[0], size);
-    mbx->SetUpFromJson(json_settings);
 
     std::vector<double> box(9, 0.0);
 
