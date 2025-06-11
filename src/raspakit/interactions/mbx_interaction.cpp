@@ -169,6 +169,9 @@ RunningEnergy Interactions::computeMBXEnergy(
 
     std::cerr << "MBX energy: " << energy << std::endl;
 
+    // Convert kcal/mol -> J
+    energy *= 6.95 * std::pow(10.0f, -21);
+
     // double energy = 0.0;
 
     RunningEnergy energySum{};
