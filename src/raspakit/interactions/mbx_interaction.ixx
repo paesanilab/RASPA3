@@ -8,7 +8,7 @@ module;
 #include <vector>
 #endif
 
-module interactions_mbx;
+export module interactions_mbx;
 
 #ifndef USE_LEGACY_HEADERS
 import <span>;
@@ -41,8 +41,12 @@ export namespace Interactions
  * \param moleculeAtoms A span of atoms for which to compute inter-molecular energies.
  * \return The total inter-molecular energy contributions.
  */
-double computeMBXEnergy(const ForceField &forceField, const SimulationBox &simulationBox,
-                                          std::span<const Atom> moleculeAtoms) noexcept;
+RunningEnergy computeMBXEnergy(
+        const ForceField &forceField,
+        const SimulationBox &box,
+        std::span<const Atom> frameworkAtoms,
+        std::span<const Atom> moleculeAtoms
+) noexcept;
 
 /**
  * \brief Computes the difference in inter-molecular energy due to atom changes.
@@ -58,8 +62,13 @@ double computeMBXEnergy(const ForceField &forceField, const SimulationBox &simul
  * \param oldatoms A span of atoms to be removed from the system.
  * \return The energy difference due to the atom changes, or std::nullopt if an overlap occurs.
  */
-[[nodiscard]] std::optional<double> computeMBXEnergyDifference(
-    const ForceField &forceField, const SimulationBox &simulationBox, std::span<const Atom> moleculeAtoms,
-    std::span<const Atom> newatoms, std::span<const Atom> oldatoms) noexcept;
+[[nodiscard]] RunningEnergy computeMBXEnergyDifference(
+        const ForceField &forceField,
+        const SimulationBox &simulationBox,
+        std::span<const Atom> frameworkAtoms,
+        std::span<const Atom> moleculeAtoms,
+        std::span<const Atom> newatoms,
+        std::span<const Atom> oldatoms
+) noexcept;
 
 }

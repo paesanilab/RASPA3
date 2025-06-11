@@ -55,6 +55,7 @@ import interactions_intermolecular;
 import interactions_ewald;
 import interactions_external_field;
 import interactions_polarization;
+import interactions_mbx;
 import mc_moves_move_types;
 
 std::optional<RunningEnergy> MC_Moves::translationMove(RandomNumber &random, System &system, size_t selectedComponent,
@@ -146,7 +147,17 @@ std::optional<RunningEnergy> MC_Moves::translationMove(RandomNumber &random, Sys
   time_end = std::chrono::system_clock::now();
   component.mc_moves_cputime[move]["Molecule-Molecule"] += (time_end - time_begin);
   system.mc_moves_cputime[move]["Molecule-Molecule"] += (time_end - time_begin);
+
   if (!interMolecule.has_value()) return std::nullopt;
+
+  time_begin = std::chrono::system_clock::now();
+
+  RunningEnergy mbx = Interactions::computeMBXEnergyDifference(
+      system.forceField, system.simulationBox, system.spanOfFrameworkAtoms(), system.spanOfMoleculeAtoms(), trialMolecule.second, molecule_atoms);
+
+  time_end = std::chrono::system_clock::now();
+  component.mc_moves_cputime[move]["MBX"] += (time_end - time_begin);
+  system.mc_moves_cputime[move]["MBX"] += (time_end - time_begin);
 
   // Compute Ewald energy contribution
   time_begin = std::chrono::system_clock::now();
@@ -168,7 +179,7 @@ std::optional<RunningEnergy> MC_Moves::translationMove(RandomNumber &random, Sys
 
   // Calculate the total energy difference
   RunningEnergy energyDifference = externalFieldMolecule.value() + frameworkMolecule.value() + interMolecule.value() +
-                                   ewaldFourierEnergy + polarization;
+                                   ewaldFourierEnergy + polarization + mbx;
 
   // Update move construction statistics
   component.mc_moves_statistics.addConstructed(move, selectedDirection);

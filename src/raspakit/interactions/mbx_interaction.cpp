@@ -26,7 +26,7 @@ import <cmath>;
 import <optional>;
 import <thread>;
 import <future>;
-import "bblock/system.h"
+#include "bblock/system.h"
 #endif
 
 import energy_status;
@@ -50,8 +50,12 @@ import units;
 import threadpool;
 
 // used in volume moves for computing the state at a new box and new, scaled atom positions
-double Interactions::computeMBXEnergy(const ForceField &forceField, const SimulationBox &box,
-                                                        std::span<const Atom> moleculeAtoms) noexcept
+RunningEnergy Interactions::computeMBXEnergy(
+        const ForceField &forceField,
+        const SimulationBox &simulationBox,
+        std::span<const Atom> frameworkAtoms,
+        std::span<const Atom> moleculeAtoms
+) noexcept
 {
 
     // This should get passed to MBX from RASPA, but for now we hardcode it.
@@ -67,13 +71,11 @@ double Interactions::computeMBXEnergy(const ForceField &forceField, const Simula
 
     for(int i = 0; i < moleculeAtoms.size(); i++) {
 
-        MBXMonomerInfo monomerInfo = getMBXMonomerInfo(moleculeAtoms[i].type);
-
-        int numAtoms = monomerInfo.numAtoms;
+        int numAtoms = 5; // Hard coded for methane
 
         std::vector<double> atomCoordinates(numAtoms);
         std::vector<std::string> atomNames(numAtoms);
-        std::string molName = monomerInfo.monomerName;
+        std::string molName = "ch4";
 
         for(int j = 0; j < numAtoms; j++) {
             atomCoordinates[j * 3] = moleculeAtoms[i + j].position.x;
@@ -102,7 +104,7 @@ double Interactions::computeMBXEnergy(const ForceField &forceField, const Simula
     std::vector<size_t> frameworkIsLocals(frameworkAtoms.size(), true);
     std::vector<int> frameworkTags(frameworkAtoms.size());
 
-    for (int i = 0; i < frameworkMolecules.size(); i++) {
+    for (int i = 0; i < frameworkAtoms.size(); i++) {
         const Atom &atom = frameworkAtoms[i];
 
         frameworkCoords[i * 3] = atom.position.x;
@@ -115,7 +117,7 @@ double Interactions::computeMBXEnergy(const ForceField &forceField, const Simula
         cumulativeTagIndex += 1;
     }
     
-    mbx->SetExternalChargesAndPositions(chg_ext, xyz_ext, islocal_ext, tag_ext);
+    mbx->SetExternalChargesAndPositions(frameworkCharges, frameworkCoords, frameworkIsLocals, frameworkTags);
 
     std::vector<double> box(9, 0.0);
 
@@ -150,25 +152,38 @@ double Interactions::computeMBXEnergy(const ForceField &forceField, const Simula
 
     delete mbx;
 
-    return energy;
+    std::cerr << "MBX energy: " << energy << std::endl;
+
+    
+
+    RunningEnergy energySum{};
+
+    energySum.moleculeMoleculeCharge = energy; // For now, assign entire energy to moleculeMoleculeCharge.
+
+    return energySum;
 }
 
 // used in mc_moves_translation.cpp, mc_moves_rotation.cpp,
 //         mc_moves_random_translation.cpp, mc_moves_random_rotation.cpp
 //         mc_moves_swap_cfcmc.cpp, mc_moves_swap_cfcmc_cbmc.cpp, mc_moves_gibbs_swap_cfcmc.cpp
-[[nodiscard]] std::optional<double> Interactions::computeMBXEnergyDifference(
-    const ForceField &forceField, const SimulationBox &simulationBox, std::span<const Atom> moleculeAtoms,
-    std::span<const Atom> newatoms, std::span<const Atom> oldatoms) noexcept
+[[nodiscard]] RunningEnergy Interactions::computeMBXEnergyDifference(
+        const ForceField &forceField,
+        const SimulationBox &simulationBox,
+        std::span<const Atom> frameworkAtoms,
+        std::span<const Atom> moleculeAtoms,
+        std::span<const Atom> newatoms,
+        std::span<const Atom> oldatoms
+) noexcept
 {
 
-    std::vector<const Atom> allOldAtoms;
+    std::vector<Atom> allOldAtoms;
     allOldAtoms.insert(allOldAtoms.end(), moleculeAtoms.begin(), moleculeAtoms.end());
     allOldAtoms.insert(allOldAtoms.end(), oldatoms.begin(), oldatoms.end());
 
-    std::vector<const Atom> allNewAtoms;
+    std::vector<Atom> allNewAtoms;
     allNewAtoms.insert(allNewAtoms.end(), moleculeAtoms.begin(), moleculeAtoms.end());
     allNewAtoms.insert(allNewAtoms.end(), newatoms.begin(), newatoms.end());
 
-    return Interactions::computeMBXEnergy(forceField, simulationBox, std::vector<const Atom>(allNewAtoms))
-         - Interactions::computeMBXEnergy(forceField, simulationBox, std::vector<const Atom(allOldAtoms))
+    return Interactions::computeMBXEnergy(forceField, simulationBox, frameworkAtoms, allNewAtoms)
+         - Interactions::computeMBXEnergy(forceField, simulationBox, frameworkAtoms, allOldAtoms);
 }
